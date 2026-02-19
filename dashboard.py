@@ -1185,8 +1185,8 @@ class Dashboard(App):
             return
         self._update_action_visibility()
 
-        # Auto-switch log viewer when a service checkbox is checked
-        if event.value and event.checkbox.id and event.checkbox.id.startswith("chk-"):
+        # Auto-switch log viewer when a service checkbox is clicked
+        if event.checkbox.id and event.checkbox.id.startswith("chk-"):
             service = event.checkbox.id.removeprefix("chk-")
             select = self.query_one("#service-select", Select)
             # Check if this service is available in the dropdown
