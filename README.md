@@ -8,8 +8,13 @@ Monitor services, tail logs, manage deployments, and control your stack from one
 
 StackTUI supports 12 color themes. Press `T` to cycle through them, or use the command palette (`Ctrl+P`).
 
-<img src="docs/screenshots/textual-dark.svg" alt="textual-dark" width="600"> <img src="docs/screenshots/nord.svg" alt="nord" width="600">
-<img src="docs/screenshots/gruvbox.svg" alt="gruvbox" width="600"> <img src="docs/screenshots/tokyo-night.svg" alt="tokyo-night" width="600">
+<img src="docs/screenshots/textual-dark.svg" alt="textual-dark" width="600">
+
+<img src="docs/screenshots/nord.svg" alt="nord" width="600">
+
+<img src="docs/screenshots/gruvbox.svg" alt="gruvbox" width="600"> 
+
+<img src="docs/screenshots/tokyo-night.svg" alt="tokyo-night" width="600">
 
 <details>
 <summary>All available themes</summary>
