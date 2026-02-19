@@ -1,0 +1,23 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual environment
+.venv/
+
+# Logs (except .gitkeep)
+logs/*
+!logs/.gitkeep
+
+# IDE
+.vscode/
+.idea/
+
+# Project config (user-specific; copy dashboard.toml.example to get started)
+dashboard.toml
+
+# OS
+.DS_Store

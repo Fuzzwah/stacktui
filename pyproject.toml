@@ -1,0 +1,13 @@
+[project]
+name = "stacktui"
+version = "0.1.0"
+description = "A TUI dashboard for Docker Compose projects"
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = [
+    "textual>=1.0,<2.0",
+]
+
+[project.scripts]
+stacktui = "dashboard:main"

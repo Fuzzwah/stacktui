@@ -1,0 +1,134 @@
+# StackTUI Configuration
+# Copy this file to dashboard.toml and customize for your project.
+
+# ---------------------------------------------------------------------------
+# Project identity
+# ---------------------------------------------------------------------------
+[project]
+# Project name — used for the dashboard title and to identify Docker containers.
+# Containers are expected to be named "<name>-<service>" (Docker Compose default).
+name = "myproject"
+
+# ---------------------------------------------------------------------------
+# Docker Compose files
+# ---------------------------------------------------------------------------
+[compose]
+# Path to your development compose file (relative to project root).
+dev = "docker-compose.yml"
+
+# Path to your production compose file (optional).
+# If omitted, only dev mode is available.
+# prod = "docker-compose.prod.yml"
+
+# ---------------------------------------------------------------------------
+# Services
+# ---------------------------------------------------------------------------
+[services]
+# Primary/app services — these have custom Dockerfiles and get rebuilt (--build)
+# on restart. They start AFTER infra services.
+primary = ["webapp", "worker"]
+
+# Infrastructure services — stock images that just get restarted (no build).
+# They start BEFORE primary services.
+infra = ["db", "redis"]
+
+# Friendly display names for each service.
+[services.labels]
+webapp = "Web App"
+worker = "Worker"
+db     = "Database"
+redis  = "Redis"
+
+# ---------------------------------------------------------------------------
+# Path-to-service mapping (for git-aware features)
+# ---------------------------------------------------------------------------
+# Maps source file prefixes to the service they affect.
+# Used by the dashboard to detect which services are affected by code changes.
+# Set service = "*" for files that affect ALL services (e.g. docker-compose.yml).
+
+# [[path_map]]
+# prefix = "app/"
+# service = "webapp"
+#
+# [[path_map]]
+# prefix = "worker/"
+# service = "worker"
+#
+# [[path_map]]
+# prefix = "docker-compose"
+# service = "*"
+
+# ---------------------------------------------------------------------------
+# Log files
+# ---------------------------------------------------------------------------
+[logs]
+# Directory for log files (relative to project root).
+dir = "logs"
+
+# Named log files that can be tailed in the dashboard.
+# These appear in the service dropdown as "<name> (log file)".
+[logs.files]
+# worker = "worker.log"
+# app = "app.log"
+
+# ---------------------------------------------------------------------------
+# Healthcheck freshness
+# ---------------------------------------------------------------------------
+[freshness]
+# Container name to probe for healthcheck freshness display.
+# Shows "Xm XXs ago" based on the last successful healthcheck.
+# Leave empty to disable.
+# container = "myproject-webapp-1"
+
+# ---------------------------------------------------------------------------
+# Links panel
+# ---------------------------------------------------------------------------
+[links]
+# Links displayed in the dashboard. Use {base_url} as a placeholder
+# that gets replaced with the dev or prod URL.
+# "Web App" = "{base_url}/"
+# "Admin"   = "{base_url}/admin/"
+
+# Links only shown in development mode.
+[links.dev_only]
+# "Mailpit" = "http://localhost:8025"
+
+# ---------------------------------------------------------------------------
+# URLs
+# ---------------------------------------------------------------------------
+[urls]
+# Base URL for development mode.
+dev = "http://localhost:8000"
+
+# Base URL for production mode (optional).
+# If omitted, dev URL is used as fallback.
+# prod = "https://myapp.example.com"
+
+# ---------------------------------------------------------------------------
+# Production detection
+# ---------------------------------------------------------------------------
+[prod_detection]
+# Container name to inspect to auto-detect production mode.
+# If this container is running, the dashboard assumes production mode.
+# Leave empty to always default to dev mode (or use --prod flag).
+# container = "myproject-webapp-1"
+
+# ---------------------------------------------------------------------------
+# Theme (optional)
+# ---------------------------------------------------------------------------
+[theme]
+# Set the default Textual theme. Available built-in themes:
+#   textual-dark (default), textual-light, nord, gruvbox,
+#   tokyo-night, atom-one-dark, atom-one-light, solarized-light
+# Cycle themes at runtime with Shift+T, or use Ctrl+P command palette.
+# name = "textual-dark"
+
+# ---------------------------------------------------------------------------
+# Native process detection (optional, dev mode only)
+# ---------------------------------------------------------------------------
+[native_processes]
+# Detect processes running outside Docker (matched via pgrep -f).
+# Useful for services you run directly during development.
+# Format: name = "process pattern"
+# bot = "discord_bot/bot.py"
+# collector = "data_collect/main.py"
