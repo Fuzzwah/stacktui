@@ -117,10 +117,14 @@ dev = "http://localhost:8000"
 # Theme (optional)
 # ---------------------------------------------------------------------------
 [theme]
-# Set the default Textual theme. Available built-in themes:
+# Set the default Textual theme for this project. Available built-in themes:
 #   textual-dark (default), textual-light, nord, gruvbox,
 #   tokyo-night, atom-one-dark, atom-one-light, solarized-light
 # Cycle themes at runtime with Shift+T, or use Ctrl+P command palette.
+#
+# This value is the PROJECT DEFAULT. When a user cycles the theme with
+# Shift+T, their choice is saved to .stacktui-user.toml (per-user,
+# gitignored) which takes precedence over this setting.
 # name = "textual-dark"
 
 # ---------------------------------------------------------------------------

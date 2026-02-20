@@ -46,6 +46,7 @@ from textual.widgets import (
 # ---------------------------------------------------------------------------
 
 PROJECT_ROOT = Path.cwd()
+USER_PREFS_FILENAME = ".stacktui-user.toml"
 
 
 @dataclass
@@ -92,6 +93,8 @@ class DashboardConfig:
 
     # Source file path (for write-back)
     config_path: Path | None = None
+    # User preferences file path (for per-user overrides)
+    user_prefs_path: Path | None = None
 
     @property
     def service_order(self) -> list[str]:
@@ -184,17 +187,32 @@ class DashboardConfig:
         # Track source file for write-back
         config.config_path = path
 
+        # Load per-user preferences (overrides project config)
+        user_prefs_file = path.parent / USER_PREFS_FILENAME
+        config.user_prefs_path = user_prefs_file
+        if user_prefs_file.exists():
+            with open(user_prefs_file, "rb") as uf:
+                user_data = tomllib.load(uf)
+            user_theme = user_data.get("theme", {}).get("name", "")
+            if user_theme:
+                config.theme_name = user_theme
+
         return config
 
     def save_theme(self, theme_name: str) -> None:
-        """Save the theme name back to the source TOML config file."""
-        if self.config_path is None:
+        """Save the theme name to the per-user preferences file."""
+        if self.user_prefs_path is None:
             return
-        doc = tomlkit.parse(self.config_path.read_text())
+        if self.user_prefs_path.exists():
+            doc = tomlkit.parse(self.user_prefs_path.read_text())
+        else:
+            doc = tomlkit.document()
+            doc.add(tomlkit.comment("Per-user StackTUI preferences (not committed to git)"))
+            doc.add(tomlkit.nl())
         if "theme" not in doc:
             doc.add("theme", tomlkit.table())
         doc["theme"]["name"] = theme_name
-        self.config_path.write_text(tomlkit.dumps(doc))
+        self.user_prefs_path.write_text(tomlkit.dumps(doc))
 
 
 def find_config(config_path: str | None = None) -> DashboardConfig:
@@ -218,8 +236,20 @@ def find_config(config_path: str | None = None) -> DashboardConfig:
         if script_config.exists():
             return DashboardConfig.load(script_config)
 
-    print("Error: No dashboard.toml found.")
-    print("  Copy dashboard.toml.example to dashboard.toml and configure it.")
+    # Auto-copy the example config if available
+    example_candidates = [
+        Path.cwd() / "dashboard.toml.example",
+        Path(__file__).resolve().parent / "dashboard.toml.example",
+    ]
+    for example in example_candidates:
+        if example.exists():
+            import shutil
+            shutil.copy2(example, cwd_config)
+            print(f"Created dashboard.toml from {example.name} — edit it to match your project.")
+            return DashboardConfig.load(cwd_config)
+
+    print("Error: No dashboard.toml or dashboard.toml.example found.")
+    print("  Create a dashboard.toml and configure it.")
     sys.exit(1)
 
 
