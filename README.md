@@ -32,7 +32,7 @@ catppuccin-latte, catppuccin-mocha, dracula, flexoki, gruvbox, monokai, nord, so
 - **Service selection** — Checkbox-based selection with Select All, plus quick-select buttons for changed or unhealthy services
 - **Git integration** — Pull latest code, switch branches/refs, view commit history, and auto-detect affected services from diffs
 - **Webhook notifications** — Banner alerts when GitHub pushes new commits to the current branch
-- **Theme switching** — 12 built-in themes, cycle with `T` or pick from the command palette; set a default in config
+- **Theme switching** — 12 built-in themes, cycle with `T` or pick from the command palette; selection persists across sessions
 - **Self-update** — Pulls latest code on startup; detects when the dashboard script changes and offers a reload button
 - **Dev/prod modes** — Auto-detects environment via container inspection, or use `--prod`/`--dev` flags
 - **Native process detection** — Monitors non-Docker processes via `pgrep` patterns (dev mode only)
@@ -160,6 +160,7 @@ openspec/                 # OpenSpec specs and changes
 
 - Python 3.11+
 - [Textual](https://github.com/Textualize/textual) >=1.0, <2.0
+- [tomlkit](https://github.com/sdispater/tomlkit) >=0.13 (format-preserving TOML writes)
 - Docker with Compose v2
 - Git
 
