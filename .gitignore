@@ -17,7 +17,7 @@ logs/*
 .idea/
 
 # Project config (user-specific; copy dashboard.toml.example to get started)
-dashboard.toml
+/dashboard.toml
 .stacktui-user.toml
 
 # OS

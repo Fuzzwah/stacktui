@@ -50,7 +50,7 @@ docker compose -f demo/docker-compose.yml up -d
 
 # Install and run with the demo config
 uv sync
-cp dashboard.demo.toml dashboard.toml
+cp demo/dashboard.toml dashboard.toml
 uv run stacktui --dev
 ```
 
@@ -149,10 +149,11 @@ The `openspec/` directory contains the full spec history. The `.claude/` directo
 stacktui/                 # Python package
   __init__.py             # Public API exports
   dashboard.py            # Main application
-dashboard.toml            # Active config (demo preset)
 dashboard.toml.example    # Annotated config template
 pyproject.toml            # Package metadata + build config
 demo/                     # Demo Docker Compose environment
+  dashboard.toml          # Pre-configured demo config
+  docker-compose.yml      # 5-service demo stack
 openspec/                 # OpenSpec specs and changes
 ```
 

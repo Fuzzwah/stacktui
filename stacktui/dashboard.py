@@ -242,17 +242,23 @@ def find_config(config_path: str | None = None) -> DashboardConfig:
                 config = DashboardConfig.load(script_config)
 
     if config is None:
-        # Auto-copy the example config if available
+        # Auto-copy a config if available.
+        # Prefer demo config when the demo compose file exists, otherwise
+        # fall back to the generic example template.
         cwd_config = Path.cwd() / "dashboard.toml"
+        demo_candidates = [
+            Path.cwd() / "demo" / "dashboard.toml",
+            Path(__file__).resolve().parent / "demo" / "dashboard.toml",
+        ]
         example_candidates = [
             Path.cwd() / "dashboard.toml.example",
             Path(__file__).resolve().parent / "dashboard.toml.example",
         ]
-        for example in example_candidates:
-            if example.exists():
+        for candidate in demo_candidates + example_candidates:
+            if candidate.exists():
                 import shutil
-                shutil.copy2(example, cwd_config)
-                print(f"Created dashboard.toml from {example.name} — edit it to match your project.")
+                shutil.copy2(candidate, cwd_config)
+                print(f"Created dashboard.toml from {candidate} — edit it to match your project.")
                 config = DashboardConfig.load(cwd_config)
                 break
 

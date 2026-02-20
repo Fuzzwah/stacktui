@@ -1,0 +1,59 @@
+# StackTUI Demo Configuration
+# This config is pre-configured for the included demo environment.
+#
+# To use: copy this file to the project root:
+#   cp demo/dashboard.toml dashboard.toml
+
+[project]
+name = "stacktui-demo"
+
+[compose]
+dev = "demo/docker-compose.yml"
+
+[services]
+primary = ["webapp", "worker"]
+infra = ["db", "redis", "nginx"]
+
+[services.labels]
+webapp = "Web App"
+worker = "Worker"
+db = "Database"
+redis = "Redis"
+nginx = "Nginx"
+
+[[path_map]]
+prefix = "demo/webapp/"
+service = "webapp"
+
+[[path_map]]
+prefix = "demo/worker/"
+service = "worker"
+
+[[path_map]]
+prefix = "demo/nginx/"
+service = "nginx"
+
+[[path_map]]
+prefix = "demo/docker-compose"
+service = "*"
+
+[logs]
+dir = "logs"
+
+[logs.files]
+worker = "worker.log"
+
+[freshness]
+container = "stacktui-demo-webapp-1"
+
+[links]
+"Web App" = "{base_url}/"
+
+[urls]
+dev = "http://localhost:8080"
+
+[prod_detection]
+container = "stacktui-demo-webapp-1"
+
+[theme]
+name = "tokyo-night"
