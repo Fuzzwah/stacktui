@@ -627,6 +627,37 @@ def check_webhook_signal() -> dict | None:
 # ---------------------------------------------------------------------------
 
 
+class UpdateBanner(Static):
+    """Notification banner shown when StackTUI has upstream updates available."""
+
+    DEFAULT_CSS = """
+    UpdateBanner {
+        height: auto;
+        margin-bottom: 1;
+        padding: 0 1;
+        background: $primary-darken-2;
+        color: $text;
+        display: none;
+    }
+    UpdateBanner.visible {
+        display: block;
+    }
+    """
+
+    def show_update(self, count: int) -> None:
+        """Update banner with commit count and make it visible."""
+        line = Text()
+        line.append(f" StackTUI update available ", style="bold")
+        line.append(f"({count} commit{'s' if count != 1 else ''} behind)", style="")
+        line.append(" — restart to update", style="italic")
+        self.update(line)
+        self.add_class("visible")
+
+    def hide(self) -> None:
+        """Hide the banner."""
+        self.remove_class("visible")
+
+
 class WebhookBanner(Static):
     """Notification banner shown when GitHub webhook reports new commits."""
 
@@ -922,7 +953,7 @@ class Dashboard(App):
     def __init__(self, config: DashboardConfig, prod: bool | None = None) -> None:
         super().__init__()
         self._config = config
-        self.TITLE = f"{config.project_name} Dashboard"
+        self.title = f"{config.project_name} Dashboard"
         if prod is None:
             self._prod = detect_prod_mode(config)
         else:
@@ -940,6 +971,7 @@ class Dashboard(App):
 
         with Horizontal(id="top-pane"):
             with Vertical(id="col-git"):
+                yield UpdateBanner(id="update-banner")
                 yield LinksPanel(id="links-panel")
                 yield WebhookBanner(id="webhook-banner")
                 with Vertical(id="git-controls"):
@@ -1000,6 +1032,8 @@ class Dashboard(App):
         self._refresh_status()
         self._fetch_and_refresh_refs()
         self.set_interval(10, self._refresh_status)
+        self._check_for_self_update()
+        self.set_interval(300, self._check_for_self_update)
         self._start_log_tail(self._default_log_service())
 
     def _get_service_options(self) -> list[tuple[str, str]]:
@@ -1066,6 +1100,18 @@ class Dashboard(App):
             banner.show_push(signal)
         else:
             banner.hide()
+
+    # -- Self-update check -------------------------------------------------
+
+    @work(thread=True)
+    def _check_for_self_update(self) -> None:
+        """Check if StackTUI has upstream updates available."""
+        count = _check_stacktui_updates()
+        banner = self.query_one("#update-banner", UpdateBanner)
+        if count > 0:
+            self.call_from_thread(banner.show_update, count)
+        else:
+            self.call_from_thread(banner.hide)
 
     # -- Log tailing -------------------------------------------------------
 
@@ -1675,6 +1721,41 @@ def _is_installed_package() -> bool:
     return "site-packages" in str(Path(__file__).resolve())
 
 
+def _get_stacktui_repo_root() -> Path | None:
+    """Return the git repo root containing this StackTUI package, or None."""
+    if _is_installed_package():
+        return None
+    current = Path(__file__).resolve().parent
+    for parent in [current, *current.parents]:
+        if (parent / ".git").exists():
+            return parent
+    return None
+
+
+def _check_stacktui_updates() -> int:
+    """Check if the StackTUI repo is behind its upstream tracking branch.
+
+    Returns the number of commits behind, or 0 on any failure.
+    """
+    repo = _get_stacktui_repo_root()
+    if repo is None or repo == PROJECT_ROOT:
+        return 0
+    try:
+        subprocess.run(
+            ["git", "fetch"],
+            capture_output=True, text=True, timeout=15, cwd=repo,
+        )
+        result = subprocess.run(
+            ["git", "rev-list", "HEAD..@{u}", "--count"],
+            capture_output=True, text=True, timeout=5, cwd=repo,
+        )
+        if result.returncode == 0:
+            return int(result.stdout.strip())
+    except (subprocess.TimeoutExpired, ValueError, OSError):
+        pass
+    return 0
+
+
 def _get_script_relative_path() -> str:
     """Return the script's path relative to PROJECT_ROOT, for self-update detection."""
     if _is_installed_package():
@@ -1698,6 +1779,21 @@ def _self_update() -> None:
     script = Path(__file__).resolve()
     old_mtime = script.stat().st_mtime
 
+    # Pull the StackTUI repo if it differs from the managed project
+    stacktui_repo = _get_stacktui_repo_root()
+    if stacktui_repo and stacktui_repo != PROJECT_ROOT:
+        result = subprocess.run(
+            ["git", "pull", "--ff-only"],
+            capture_output=True, text=True, timeout=30, cwd=stacktui_repo,
+        )
+        if result.returncode != 0:
+            print(f"StackTUI pull failed: {result.stderr.strip()}")
+
+        if script.stat().st_mtime != old_mtime:
+            print("StackTUI updated — restarting...")
+            os.execv(sys.executable, [sys.executable, *sys.argv])
+
+    # Pull the managed project
     result = subprocess.run(
         ["git", "pull", "--ff-only"],
         capture_output=True, text=True, timeout=30, cwd=PROJECT_ROOT,
