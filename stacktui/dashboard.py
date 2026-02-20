@@ -123,6 +123,7 @@ class DashboardConfig:
         # [project]
         project = data.get("project", {})
         config.project_name = project.get("name", config.project_name)
+        config._name_from_config = "name" in project
 
         # [compose]
         compose = data.get("compose", {})
@@ -217,40 +218,57 @@ class DashboardConfig:
 
 def find_config(config_path: str | None = None) -> DashboardConfig:
     """Find and load the configuration file."""
+    config: DashboardConfig | None = None
+
     if config_path:
         path = Path(config_path)
         if not path.exists():
             print(f"Error: Config file not found: {config_path}")
             sys.exit(1)
-        return DashboardConfig.load(path)
+        config = DashboardConfig.load(path)
 
-    # Search in CWD (PROJECT_ROOT is also CWD)
-    cwd_config = Path.cwd() / "dashboard.toml"
-    if cwd_config.exists():
-        return DashboardConfig.load(cwd_config)
+    if config is None:
+        # Search in CWD (PROJECT_ROOT is also CWD)
+        cwd_config = Path.cwd() / "dashboard.toml"
+        if cwd_config.exists():
+            config = DashboardConfig.load(cwd_config)
 
-    # Search next to the script (for running from source checkout)
-    script_dir = Path(__file__).resolve().parent
-    if script_dir != Path.cwd():
-        script_config = script_dir / "dashboard.toml"
-        if script_config.exists():
-            return DashboardConfig.load(script_config)
+    if config is None:
+        # Search next to the script (for running from source checkout)
+        script_dir = Path(__file__).resolve().parent
+        if script_dir != Path.cwd():
+            script_config = script_dir / "dashboard.toml"
+            if script_config.exists():
+                config = DashboardConfig.load(script_config)
 
-    # Auto-copy the example config if available
-    example_candidates = [
-        Path.cwd() / "dashboard.toml.example",
-        Path(__file__).resolve().parent / "dashboard.toml.example",
-    ]
-    for example in example_candidates:
-        if example.exists():
-            import shutil
-            shutil.copy2(example, cwd_config)
-            print(f"Created dashboard.toml from {example.name} — edit it to match your project.")
-            return DashboardConfig.load(cwd_config)
+    if config is None:
+        # Auto-copy the example config if available
+        cwd_config = Path.cwd() / "dashboard.toml"
+        example_candidates = [
+            Path.cwd() / "dashboard.toml.example",
+            Path(__file__).resolve().parent / "dashboard.toml.example",
+        ]
+        for example in example_candidates:
+            if example.exists():
+                import shutil
+                shutil.copy2(example, cwd_config)
+                print(f"Created dashboard.toml from {example.name} — edit it to match your project.")
+                config = DashboardConfig.load(cwd_config)
+                break
 
-    print("Error: No dashboard.toml or dashboard.toml.example found.")
-    print("  Create a dashboard.toml and configure it.")
-    sys.exit(1)
+    if config is None:
+        print("Error: No dashboard.toml or dashboard.toml.example found.")
+        print("  Create a dashboard.toml and configure it.")
+        sys.exit(1)
+
+    # Auto-detect project name from docker compose if not set in config
+    if not getattr(config, "_name_from_config", False):
+        compose_file = str(PROJECT_ROOT / config.compose_dev)
+        detected = _detect_compose_project_name(compose_file)
+        if detected:
+            config.project_name = detected
+
+    return config
 
 
 # ---------------------------------------------------------------------------
@@ -288,6 +306,20 @@ def _run(cmd: list[str], timeout: int = 10) -> str:
         return result.stdout.strip()
     except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
         return ""
+
+
+def _detect_compose_project_name(compose_file: str) -> str | None:
+    """Ask docker compose for the resolved project name."""
+    out = _run(
+        ["docker", "compose", "-f", compose_file, "config", "--format", "json"],
+        timeout=10,
+    )
+    if out:
+        try:
+            return json.loads(out).get("name")
+        except (json.JSONDecodeError, KeyError):
+            pass
+    return None
 
 
 def detect_prod_mode(config: DashboardConfig) -> bool:
