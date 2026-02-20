@@ -179,7 +179,7 @@ class DashboardConfig:
 
         # [theme]
         theme = data.get("theme", {})
-        config.theme_name = theme.get("name", config.theme_name)
+        config.theme_name = theme.get("name", "") or config.theme_name
 
         # Track source file for write-back
         config.config_path = path
@@ -944,7 +944,8 @@ class Dashboard(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        self.theme = self._config.theme_name
+        if self._config.theme_name in self.available_themes:
+            self.theme = self._config.theme_name
 
         mode = "prod" if self._prod else "dev"
         self.sub_title = f"{mode} | {self._git_info}"
