@@ -959,7 +959,7 @@ class Dashboard(App):
     def __init__(self, config: DashboardConfig, prod: bool | None = None) -> None:
         super().__init__()
         self._config = config
-        self.title = f"{config.project_name} Dashboard"
+        self.title = f"{config.project_name}"
         if prod is None:
             self._prod = detect_prod_mode(config)
         else:
@@ -1840,6 +1840,9 @@ def main() -> None:
         prod = False
     else:
         prod = None
+
+    # Ensure truecolor support so themes render correctly on all terminals
+    os.environ.setdefault("COLORTERM", "truecolor")
 
     app = Dashboard(config=config, prod=prod)
     app.run()
