@@ -17,6 +17,7 @@ import asyncio
 import contextlib
 import json
 import os
+import re
 import subprocess
 import sys
 import tomllib
@@ -44,7 +45,7 @@ from textual.widgets import (
 # Configuration
 # ---------------------------------------------------------------------------
 
-PROJECT_ROOT = Path(__file__).resolve().parent
+PROJECT_ROOT = Path.cwd()
 
 
 @dataclass
@@ -87,7 +88,10 @@ class DashboardConfig:
     native_processes: list[tuple[str, str]] = field(default_factory=list)
 
     # Theme
-    theme_name: str = ""
+    theme_name: str = "nord"
+
+    # Source file path (for write-back)
+    config_path: Path | None = None
 
     @property
     def service_order(self) -> list[str]:
@@ -175,9 +179,36 @@ class DashboardConfig:
 
         # [theme]
         theme = data.get("theme", {})
-        config.theme_name = theme.get("name", "")
+        config.theme_name = theme.get("name", config.theme_name)
+
+        # Track source file for write-back
+        config.config_path = path
 
         return config
+
+    def save_theme(self, theme_name: str) -> None:
+        """Save the theme name back to the source TOML config file."""
+        if self.config_path is None:
+            return
+        text = self.config_path.read_text()
+        # Try to replace existing name = ... under [theme]
+        new_text, count = re.subn(
+            r"(?m)(^\[theme\]\s*\n(?:[^\[]*?)?)^name\s*=\s*.*$",
+            rf"\g<1>name = \"{theme_name}\"",
+            text,
+        )
+        if count == 0:
+            # Check if [theme] section exists without a name key
+            if re.search(r"(?m)^\[theme\]\s*$", text):
+                new_text = re.sub(
+                    r"(?m)(^\[theme\]\s*\n)",
+                    rf"\g<1>name = \"{theme_name}\"\n",
+                    text,
+                )
+            else:
+                # No [theme] section at all — append it
+                new_text = text.rstrip() + f"\n\n[theme]\nname = \"{theme_name}\"\n"
+        self.config_path.write_text(new_text)
 
 
 def find_config(config_path: str | None = None) -> DashboardConfig:
@@ -189,15 +220,17 @@ def find_config(config_path: str | None = None) -> DashboardConfig:
             sys.exit(1)
         return DashboardConfig.load(path)
 
-    # Search in CWD
+    # Search in CWD (PROJECT_ROOT is also CWD)
     cwd_config = Path.cwd() / "dashboard.toml"
     if cwd_config.exists():
         return DashboardConfig.load(cwd_config)
 
-    # Search next to the script
-    script_config = PROJECT_ROOT / "dashboard.toml"
-    if script_config.exists():
-        return DashboardConfig.load(script_config)
+    # Search next to the script (for running from source checkout)
+    script_dir = Path(__file__).resolve().parent
+    if script_dir != Path.cwd():
+        script_config = script_dir / "dashboard.toml"
+        if script_config.exists():
+            return DashboardConfig.load(script_config)
 
     print("Error: No dashboard.toml found.")
     print("  Copy dashboard.toml.example to dashboard.toml and configure it.")
@@ -919,8 +952,7 @@ class Dashboard(App):
         yield Footer()
 
     def on_mount(self) -> None:
-        if self._config.theme_name:
-            self.theme = self._config.theme_name
+        self.theme = self._config.theme_name
 
         mode = "prod" if self._prod else "dev"
         self.sub_title = f"{mode} | {self._git_info}"
@@ -1270,6 +1302,7 @@ class Dashboard(App):
         except ValueError:
             next_idx = 0
         self.theme = themes[next_idx]
+        self._config.save_theme(self.theme)
         self.notify(f"Theme: {self.theme}")
 
     def _switch_to_orchestration(self) -> None:
@@ -1611,8 +1644,15 @@ class Dashboard(App):
 # ---------------------------------------------------------------------------
 
 
+def _is_installed_package() -> bool:
+    """Return True if running from an installed package (not from source)."""
+    return "site-packages" in str(Path(__file__).resolve())
+
+
 def _get_script_relative_path() -> str:
     """Return the script's path relative to PROJECT_ROOT, for self-update detection."""
+    if _is_installed_package():
+        return ""
     try:
         return str(Path(__file__).resolve().relative_to(PROJECT_ROOT))
     except ValueError:
@@ -1626,6 +1666,9 @@ def _get_script_relative_path() -> str:
 
 def _self_update() -> None:
     """Pull latest code and re-exec if this script changed."""
+    if _is_installed_package():
+        return
+
     script = Path(__file__).resolve()
     old_mtime = script.stat().st_mtime
 

@@ -4,11 +4,11 @@ A TUI dashboard for managing Docker Compose projects. Built with Python 3.11+ an
 
 ## Architecture
 
-Single-file application (`dashboard.py`, ~1545 lines) with these major components:
+Python package (`stacktui/dashboard.py`, ~1545 lines) with these major components:
 
 ### Configuration (`DashboardConfig`)
 - Dataclass loaded from `dashboard.toml` (TOML format, stdlib `tomllib`)
-- Searched in CWD first, then script directory; `--config` flag overrides
+- Searched in CWD first, then package's parent directory; `--config` flag overrides
 - Services split into **primary** (app, rebuilt with `--build`) and **infra** (stock images, plain restart)
 - `service_order` = primary + infra (determines display and startup order)
 - Path-to-service mapping (`[[path_map]]`) drives git-aware affected service detection
@@ -45,7 +45,7 @@ Single-file application (`dashboard.py`, ~1545 lines) with these major component
 ## Key Patterns
 
 - All Docker/git commands run via `_run()` (sync) or `_run_streaming()` (with live output)
-- `PROJECT_ROOT = Path(__file__).resolve().parent` — all paths relative to script location
+- `PROJECT_ROOT = Path(__file__).resolve().parent` — all paths relative to package directory
 - Orchestration actions write to both `RichLog` widget and `logs/orchestration.log` file
 - `@work(exclusive=True, thread=True)` prevents concurrent orchestration operations
 - Service dropdown dynamically combines running containers + configured log files
@@ -75,8 +75,8 @@ See `dashboard.toml.example` for all options. Key sections:
 
 ```bash
 uv sync
-uv run python dashboard.py --dev          # run against local config
-uv run python dashboard.py --dev --config dashboard.toml  # explicit config
+uv run stacktui --dev          # run against local config
+uv run stacktui --dev --config dashboard.toml  # explicit config
 ```
 
 Demo environment: `docker compose -f demo/docker-compose.yml up -d`
@@ -84,10 +84,12 @@ Demo environment: `docker compose -f demo/docker-compose.yml up -d`
 ## Project Structure
 
 ```
-dashboard.py              # Main application (single file)
+stacktui/                 # Python package
+  __init__.py             # Public API exports
+  dashboard.py            # Main application
 dashboard.toml            # Active config (demo preset)
 dashboard.toml.example    # Annotated config template
-pyproject.toml            # Package metadata
+pyproject.toml            # Package metadata + build config
 demo/                     # Demo Docker Compose environment
   docker-compose.yml      # 5-service stack (webapp, worker, nginx, db, redis)
   webapp/                 # Flask app with healthcheck

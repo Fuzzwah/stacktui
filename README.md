@@ -48,20 +48,27 @@ cd stacktui
 # Start the demo services
 docker compose -f demo/docker-compose.yml up -d
 
-# Install dependencies and run with the demo config
+# Install and run with the demo config
 uv sync
 cp dashboard.demo.toml dashboard.toml
-uv run python dashboard.py --dev
+uv run stacktui --dev
 ```
 
 Visit <http://localhost:8080> to generate some nginx/webapp logs.
+
+## Installation
+
+```bash
+pip install stacktui
+# or with uv
+uv add stacktui
+```
 
 ## Use With Your Project
 
 1. Copy `dashboard.toml.example` to `dashboard.toml` in your project root
 2. Configure your services, log files, and links
-3. Copy `dashboard.py` into your project
-4. Run it: `python dashboard.py`
+3. Run it: `stacktui` (or `uv run stacktui`)
 
 See `dashboard.toml.example` for a fully annotated configuration reference.
 
@@ -80,7 +87,7 @@ See `dashboard.toml.example` for a fully annotated configuration reference.
 
 ## Configuration
 
-The dashboard reads from `dashboard.toml` (searched in CWD, then script directory). Use `--config path/to/file.toml` to specify a custom path.
+The dashboard reads from `dashboard.toml` (searched in CWD, then the package's parent directory). Use `--config path/to/file.toml` to specify a custom path.
 
 Key sections:
 
@@ -111,7 +118,16 @@ The `demo/` directory contains a complete example with 5 services:
 
 Test the webhook banner: `python demo/send_webhook.py`
 
-## Development Workflow
+## Development
+
+```bash
+git clone https://github.com/fuzzwah/stacktui.git
+cd stacktui
+uv sync
+uv run stacktui --dev
+```
+
+### Workflow
 
 This project is built with [Claude Code](https://docs.anthropic.com/en/docs/claude-code) and [OpenSpec](https://github.com/openspec-dev/openspec), a spec-driven development workflow.
 
@@ -126,6 +142,19 @@ This project is built with [Claude Code](https://docs.anthropic.com/en/docs/clau
 4. **Specs stay in sync** — After a change is implemented and verified, its delta specs merge into the main specs, and the change is archived. The specs always reflect the current state of the system.
 
 The `openspec/` directory contains the full spec history. The `.claude/` directory contains the Claude Code skills that drive the workflow.
+
+### Project Structure
+
+```text
+stacktui/                 # Python package
+  __init__.py             # Public API exports
+  dashboard.py            # Main application
+dashboard.toml            # Active config (demo preset)
+dashboard.toml.example    # Annotated config template
+pyproject.toml            # Package metadata + build config
+demo/                     # Demo Docker Compose environment
+openspec/                 # OpenSpec specs and changes
+```
 
 ## Requirements
 

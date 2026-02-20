@@ -1,6 +1,6 @@
 [project]
 name = "stacktui"
-version = "0.1.0"
+version = "0.2.0"
 description = "A TUI dashboard for Docker Compose projects"
 readme = "README.md"
 license = "MIT"
@@ -10,4 +10,8 @@ dependencies = [
 ]
 
 [project.scripts]
-stacktui = "dashboard:main"
+stacktui = "stacktui.dashboard:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
