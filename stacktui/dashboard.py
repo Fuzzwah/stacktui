@@ -17,10 +17,10 @@ import asyncio
 import contextlib
 import json
 import os
-import re
 import subprocess
 import sys
 import tomllib
+import tomlkit
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -190,25 +190,11 @@ class DashboardConfig:
         """Save the theme name back to the source TOML config file."""
         if self.config_path is None:
             return
-        text = self.config_path.read_text()
-        # Try to replace existing name = ... under [theme]
-        new_text, count = re.subn(
-            r"(?m)(^\[theme\]\s*\n(?:[^\[]*?)?)^name\s*=\s*.*$",
-            rf"\g<1>name = \"{theme_name}\"",
-            text,
-        )
-        if count == 0:
-            # Check if [theme] section exists without a name key
-            if re.search(r"(?m)^\[theme\]\s*$", text):
-                new_text = re.sub(
-                    r"(?m)(^\[theme\]\s*\n)",
-                    rf"\g<1>name = \"{theme_name}\"\n",
-                    text,
-                )
-            else:
-                # No [theme] section at all — append it
-                new_text = text.rstrip() + f"\n\n[theme]\nname = \"{theme_name}\"\n"
-        self.config_path.write_text(new_text)
+        doc = tomlkit.parse(self.config_path.read_text())
+        if "theme" not in doc:
+            doc.add("theme", tomlkit.table())
+        doc["theme"]["name"] = theme_name
+        self.config_path.write_text(tomlkit.dumps(doc))
 
 
 def find_config(config_path: str | None = None) -> DashboardConfig:
@@ -789,6 +775,11 @@ class Dashboard(App):
         margin-bottom: 1;
     }
 
+    #git-controls {
+        height: auto;
+        dock: bottom;
+    }
+
     #ref-select {
         width: 100%;
         margin-bottom: 1;
@@ -909,16 +900,17 @@ class Dashboard(App):
 
         with Horizontal(id="top-pane"):
             with Vertical(id="col-git"):
-                yield WebhookBanner(id="webhook-banner")
                 yield LinksPanel(id="links-panel")
-                yield Select(
-                    get_git_refs(),
-                    prompt="Git ref",
-                    allow_blank=True,
-                    value=get_current_ref(),
-                    id="ref-select",
-                )
-                yield Button("Git Pull", id="btn-git-pull", variant="primary")
+                yield WebhookBanner(id="webhook-banner")
+                with Vertical(id="git-controls"):
+                    yield Select(
+                        get_git_refs(),
+                        prompt="Git ref",
+                        allow_blank=True,
+                        value=get_current_ref(),
+                        id="ref-select",
+                    )
+                    yield Button("Git Pull", id="btn-git-pull", variant="primary")
             with VerticalScroll(id="col-services"):
                 yield ServicePanel(self._config, id="service-panel")
                 with Horizontal(id="selection-controls"):
