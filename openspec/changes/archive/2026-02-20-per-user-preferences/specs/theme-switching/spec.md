@@ -1,23 +1,4 @@
-# Theme Switching Specification
-
-## Purpose
-
-Allows users to change the dashboard's visual theme at runtime, configure a default theme on startup, and persist theme selections across sessions. Leverages Textual's built-in theme system.
-
-## Requirements
-
-### Requirement: Theme cycling keybinding
-The dashboard SHALL provide a `Shift+T` keybinding that cycles through all available Textual themes.
-
-#### Scenario: Cycle to next theme
-- **WHEN** the user presses `Shift+T`
-- **THEN** the app's theme changes to the next theme in alphabetical order
-- **AND** a notification displays the new theme name
-
-#### Scenario: Wrap around at end of theme list
-- **WHEN** the current theme is the last in alphabetical order
-- **AND** the user presses `Shift+T`
-- **THEN** the theme wraps around to the first theme in the list
+## MODIFIED Requirements
 
 ### Requirement: Persist theme on cycle
 
@@ -67,11 +48,3 @@ The dashboard SHALL apply a theme on startup by checking the per-user preference
 
 - **WHEN** the resolved theme name does not match any available Textual theme
 - **THEN** Textual's default theme is used (no crash or error)
-
-### Requirement: Command palette theme access
-The Textual command palette (`Ctrl+P`) SHALL list all available themes for selection.
-
-#### Scenario: Select theme from command palette
-- **WHEN** the user opens the command palette with `Ctrl+P`
-- **AND** types a theme name
-- **THEN** the matching theme is applied immediately

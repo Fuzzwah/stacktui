@@ -643,12 +643,12 @@ class ServicePanel(Vertical):
 
     def compose(self) -> ComposeResult:
         yield Static("Services", id="services-title")
+        yield Static("", id="data-freshness")
         for svc in self._config.service_order:
             label = self._config.service_labels.get(svc, svc)
             with Horizontal(classes="service-row"):
                 yield Checkbox(label, id=f"chk-{svc}")
                 yield Static("", id=f"status-{svc}", classes="service-status")
-        yield Static("", id="data-freshness")
 
     def update_services(self, services: list[ServiceInfo], freshness: str) -> None:
         svc_map = {s.service: s for s in services}
@@ -820,31 +820,9 @@ class Dashboard(App):
         margin-bottom: 1;
     }
 
-    #selection-controls {
-        height: auto;
+    #selection-mode {
+        width: 100%;
         margin-top: 1;
-    }
-
-    #selection-controls Checkbox {
-        height: 1;
-        padding: 0;
-        margin: 0;
-        border: none;
-        width: auto;
-    }
-
-    #selection-controls Button {
-        height: 1;
-        min-width: 12;
-        margin: 0 0 0 1;
-    }
-
-    #btn-select-changed.hidden {
-        display: none;
-    }
-
-    #btn-select-unhealthy.hidden {
-        display: none;
     }
 
     #btn-stop {
@@ -943,10 +921,14 @@ class Dashboard(App):
                     yield Button("Git Pull", id="btn-git-pull", variant="primary")
             with VerticalScroll(id="col-services"):
                 yield ServicePanel(self._config, id="service-panel")
-                with Horizontal(id="selection-controls"):
-                    yield Checkbox("All", id="chk-select-all")
-                    yield Button("Changed", id="btn-select-changed", variant="primary", classes="hidden")
-                    yield Button("Unhealthy", id="btn-select-unhealthy", variant="warning", classes="hidden")
+                yield Select(
+                    [("All", "all"), ("Changed", "changed"), ("Stopped", "stopped"),
+                     ("Running", "running"), ("None", "none")],
+                    prompt="Select services",
+                    allow_blank=True,
+                    value=Select.BLANK,
+                    id="selection-mode",
+                )
             with Vertical(id="col-actions"):
                 yield Static("Actions", classes="actions-title")
                 yield Button("Restart", id="btn-restart", variant="warning", classes="hidden")
@@ -1043,19 +1025,6 @@ class Dashboard(App):
         freshness = get_data_freshness(self._config) if self._prod else "n/a"
         panel = self.query_one("#service-panel", ServicePanel)
         panel.update_services(services, freshness)
-
-        # Update selection control visibility
-        btn_changed = self.query_one("#btn-select-changed", Button)
-        if self._affected_services:
-            btn_changed.remove_class("hidden")
-        else:
-            btn_changed.add_class("hidden")
-
-        btn_unhealthy = self.query_one("#btn-select-unhealthy", Button)
-        if panel.get_unhealthy_services():
-            btn_unhealthy.remove_class("hidden")
-        else:
-            btn_unhealthy.add_class("hidden")
 
         self._update_action_visibility()
 
@@ -1226,50 +1195,52 @@ class Dashboard(App):
             btn_stop.remove_class("hidden")
             btn_start.remove_class("hidden")
 
-    @on(Checkbox.Changed, "#chk-select-all")
-    def on_select_all_changed(self, event: Checkbox.Changed) -> None:
-        """Toggle all service checkboxes when Select All changes."""
+    @on(Select.Changed, "#selection-mode")
+    def on_selection_mode_changed(self, event: Select.Changed) -> None:
+        """Apply service selection based on dropdown choice, then reset."""
+        if event.value is Select.BLANK:
+            return
+
+        mode = event.value
+        panel = self.query_one("#service-panel", ServicePanel)
+
+        # Determine which services to check
+        to_check: set[str] = set()
+        if mode == "all":
+            to_check = set(self._config.service_order)
+        elif mode == "changed":
+            to_check = self._affected_services
+        elif mode == "stopped":
+            to_check = {
+                svc for svc in self._config.service_order
+                if panel.get_service_status(svc) not in ("healthy", "running")
+            }
+        elif mode == "running":
+            to_check = {
+                svc for svc in self._config.service_order
+                if panel.get_service_status(svc) in ("healthy", "running")
+            }
+        # "none" leaves to_check empty
+
         for svc in self._config.service_order:
-            self.query_one(f"#chk-{svc}", Checkbox).value = event.value
+            self.query_one(f"#chk-{svc}", Checkbox).value = svc in to_check
+
+        # Reset dropdown to blank
+        self.query_one("#selection-mode", Select).value = Select.BLANK
         self._update_action_visibility()
 
     @on(Checkbox.Changed)
     def on_checkbox_changed(self, event: Checkbox.Changed) -> None:
-        # Don't recurse from select-all
-        if event.checkbox.id == "chk-select-all":
-            return
         self._update_action_visibility()
 
         # Auto-switch log viewer when a service checkbox is clicked
         if event.checkbox.id and event.checkbox.id.startswith("chk-"):
             service = event.checkbox.id.removeprefix("chk-")
             select = self.query_one("#service-select", Select)
-            # Check if this service is available in the dropdown
             for _label, value in self._get_service_options():
                 if value == service:
                     select.value = service
                     break
-
-    @on(Button.Pressed, "#btn-select-changed")
-    def on_select_changed_pressed(self) -> None:
-        """Select services affected by the last git pull."""
-        for svc in self._affected_services:
-            try:
-                self.query_one(f"#chk-{svc}", Checkbox).value = True
-            except Exception:
-                pass
-        self._update_action_visibility()
-
-    @on(Button.Pressed, "#btn-select-unhealthy")
-    def on_select_unhealthy_pressed(self) -> None:
-        """Select all unhealthy/stopped services."""
-        panel = self.query_one("#service-panel", ServicePanel)
-        for svc in panel.get_unhealthy_services():
-            try:
-                self.query_one(f"#chk-{svc}", Checkbox).value = True
-            except Exception:
-                pass
-        self._update_action_visibility()
 
     @on(Button.Pressed, "#btn-git-pull")
     def on_git_pull_pressed(self) -> None:
