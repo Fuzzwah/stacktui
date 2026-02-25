@@ -1305,16 +1305,18 @@ class Dashboard(App):
             btn_start.add_class("hidden")
             return
 
-        all_running = all(
-            panel.get_service_status(svc) in ("healthy", "running")
-            for svc in checked
-        )
-        all_stopped = all(
-            panel.get_service_status(svc) not in ("healthy", "running", "starting", "restarting")
-            for svc in checked
-        )
+        statuses = {svc: panel.get_service_status(svc) for svc in checked}
+        any_transitional = any(s in ("starting", "restarting") for s in statuses.values())
+        all_running = all(s in ("healthy", "running") for s in statuses.values())
+        all_stopped = all(s not in ("healthy", "running", "starting", "restarting") for s in statuses.values())
 
-        if all_stopped:
+        if any_transitional:
+            # Services are still coming up — hide all action buttons
+            btn_restart.add_class("hidden")
+            btn_rebuild.add_class("hidden")
+            btn_stop.add_class("hidden")
+            btn_start.add_class("hidden")
+        elif all_stopped:
             btn_restart.add_class("hidden")
             btn_rebuild.add_class("hidden")
             btn_stop.add_class("hidden")
