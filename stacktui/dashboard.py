@@ -1245,10 +1245,17 @@ class Dashboard(App):
 
     def _update_action_visibility(self) -> None:
         """Show/hide action buttons based on aggregate state of checked services."""
-        panel = self.query_one("#service-panel", ServicePanel)
         btn_restart = self.query_one("#btn-restart", Button)
         btn_stop = self.query_one("#btn-stop", Button)
         btn_start = self.query_one("#btn-start", Button)
+
+        if self._orch_in_progress:
+            btn_restart.add_class("hidden")
+            btn_stop.add_class("hidden")
+            btn_start.add_class("hidden")
+            return
+
+        panel = self.query_one("#service-panel", ServicePanel)
 
         checked = self._get_checked_services()
         if not checked:
