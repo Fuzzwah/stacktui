@@ -654,7 +654,7 @@ def check_webhook_signal() -> dict | None:
 # ---------------------------------------------------------------------------
 
 
-class UpdateBanner(Static):
+class UpdateBanner(Horizontal):
     """Notification banner shown when StackTUI has upstream updates available."""
 
     DEFAULT_CSS = """
@@ -665,19 +665,31 @@ class UpdateBanner(Static):
         background: $primary-darken-2;
         color: $text;
         display: none;
+        align: left middle;
     }
     UpdateBanner.visible {
         display: block;
     }
+    UpdateBanner Static {
+        width: 1fr;
+        content-align: left middle;
+    }
+    UpdateBanner Button {
+        min-width: 20;
+        margin-left: 1;
+    }
     """
+
+    def compose(self) -> ComposeResult:
+        yield Static("", id="update-banner-text")
+        yield Button("Restart to Update", id="btn-update-restart", variant="warning")
 
     def show_update(self, count: int) -> None:
         """Update banner with commit count and make it visible."""
         line = Text()
         line.append(f" StackTUI update available ", style="bold")
         line.append(f"({count} commit{'s' if count != 1 else ''} behind)", style="")
-        line.append(" — restart to update", style="italic")
-        self.update(line)
+        self.query_one("#update-banner-text", Static).update(line)
         self.add_class("visible")
 
     def hide(self) -> None:
@@ -1398,6 +1410,17 @@ class Dashboard(App):
     @on(Button.Pressed, "#btn-start")
     def on_start_pressed(self) -> None:
         self._do_service_action("start")
+
+    @on(Button.Pressed, "#btn-update-restart")
+    def on_update_restart_pressed(self) -> None:
+        """Pull StackTUI updates and re-exec."""
+        repo = _get_stacktui_repo_root()
+        if repo and repo != PROJECT_ROOT:
+            subprocess.run(
+                ["git", "pull", "--ff-only"],
+                capture_output=True, text=True, timeout=30, cwd=repo,
+            )
+        os.execv(sys.executable, [sys.executable, *sys.argv])
 
     @on(Button.Pressed, "#btn-reload")
     def on_reload_pressed(self) -> None:
