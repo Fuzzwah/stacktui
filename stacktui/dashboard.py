@@ -1507,13 +1507,12 @@ class Dashboard(App):
                             f"Affected services: {svc_list}",
                             style="cyan",
                         ))
-                        # Auto-select affected services
+                        # Auto-select only affected services (clear previous)
                         def _select_affected() -> None:
-                            for svc in affected:
-                                try:
-                                    self.query_one(f"#chk-{svc}", Checkbox).value = True
-                                except Exception:
-                                    pass
+                            for cb in self.query(Checkbox):
+                                svc_id = cb.id or ""
+                                svc_name = svc_id.removeprefix("chk-")
+                                cb.value = svc_name in affected
                             self._update_action_visibility()
                         self.call_from_thread(_select_affected)
 
