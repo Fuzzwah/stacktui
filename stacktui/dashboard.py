@@ -91,6 +91,9 @@ class DashboardConfig:
     # Theme
     theme_name: str = "nord"
 
+    # Last selected log service (persisted in user prefs)
+    last_selected_log: str = ""
+
     # Source file path (for write-back)
     config_path: Path | None = None
     # User preferences file path (for per-user overrides)
@@ -197,6 +200,9 @@ class DashboardConfig:
             user_theme = user_data.get("theme", {}).get("name", "")
             if user_theme:
                 config.theme_name = user_theme
+            user_log = user_data.get("logs", {}).get("selected", "")
+            if user_log:
+                config.last_selected_log = user_log
 
         return config
 
@@ -213,6 +219,21 @@ class DashboardConfig:
         if "theme" not in doc:
             doc.add("theme", tomlkit.table())
         doc["theme"]["name"] = theme_name
+        self.user_prefs_path.write_text(tomlkit.dumps(doc))
+
+    def save_selected_log(self, service: str) -> None:
+        """Save the selected log service to the per-user preferences file."""
+        if self.user_prefs_path is None:
+            return
+        if self.user_prefs_path.exists():
+            doc = tomlkit.parse(self.user_prefs_path.read_text())
+        else:
+            doc = tomlkit.document()
+            doc.add(tomlkit.comment("Per-user StackTUI preferences (not committed to git)"))
+            doc.add(tomlkit.nl())
+        if "logs" not in doc:
+            doc.add("logs", tomlkit.table())
+        doc["logs"]["selected"] = service
         self.user_prefs_path.write_text(tomlkit.dumps(doc))
 
 
@@ -909,6 +930,11 @@ class Dashboard(App):
         margin-bottom: 1;
     }
 
+    #btn-rebuild {
+        width: 100%;
+        margin-bottom: 1;
+    }
+
     #btn-stop.hidden {
         display: none;
     }
@@ -918,6 +944,10 @@ class Dashboard(App):
     }
 
     #btn-restart.hidden {
+        display: none;
+    }
+
+    #btn-rebuild.hidden {
         display: none;
     }
 
@@ -952,6 +982,7 @@ class Dashboard(App):
         Binding("s", "stop", "Stop"),
         Binding("t", "start", "Start"),
         Binding("p", "restart", "Restart"),
+        Binding("b", "rebuild", "Rebuild"),
         Binding("l", "focus_logs", "Logs"),
         Binding("T", "next_theme", "Theme"),
     ]
@@ -973,7 +1004,7 @@ class Dashboard(App):
         self._affected_services: set[str] = set()
 
     def compose(self) -> ComposeResult:
-        yield Header()
+        yield Header(show_clock=True)
 
         with Horizontal(id="top-pane"):
             with Vertical(id="col-git"):
@@ -1002,6 +1033,7 @@ class Dashboard(App):
             with Vertical(id="col-actions"):
                 yield Static("Actions", classes="actions-title")
                 yield Button("Restart", id="btn-restart", variant="warning", classes="hidden")
+                yield Button("Rebuild", id="btn-rebuild", variant="primary", classes="hidden")
                 yield Button("Stop", id="btn-stop", variant="error", classes="hidden")
                 yield Button("Start", id="btn-start", variant="success", classes="hidden")
                 yield Button("Reload Dashboard", id="btn-reload", variant="success", classes="hidden")
@@ -1077,7 +1109,11 @@ class Dashboard(App):
     def _default_log_service(self) -> str:
         """Default service to tail logs from."""
         options = self._get_service_options()
-        # Prefer first primary service
+        option_values = {v for _l, v in options}
+        # Prefer saved user preference (if still available)
+        if self._config.last_selected_log and self._config.last_selected_log in option_values:
+            return self._config.last_selected_log
+        # Fall back to first primary service
         for _label, value in options:
             for primary in self._config.primary_services:
                 if primary in value:
@@ -1231,7 +1267,9 @@ class Dashboard(App):
     @on(Select.Changed, "#service-select")
     def on_service_changed(self, event: Select.Changed) -> None:
         if event.value is not Select.BLANK:
-            self._start_log_tail(str(event.value))
+            service = str(event.value)
+            self._start_log_tail(service)
+            self._config.save_selected_log(service)
 
     @on(Select.Changed, "#ref-select")
     def on_ref_select_changed(self, event: Select.Changed) -> None:
@@ -1246,11 +1284,13 @@ class Dashboard(App):
     def _update_action_visibility(self) -> None:
         """Show/hide action buttons based on aggregate state of checked services."""
         btn_restart = self.query_one("#btn-restart", Button)
+        btn_rebuild = self.query_one("#btn-rebuild", Button)
         btn_stop = self.query_one("#btn-stop", Button)
         btn_start = self.query_one("#btn-start", Button)
 
         if self._orch_in_progress:
             btn_restart.add_class("hidden")
+            btn_rebuild.add_class("hidden")
             btn_stop.add_class("hidden")
             btn_start.add_class("hidden")
             return
@@ -1260,6 +1300,7 @@ class Dashboard(App):
         checked = self._get_checked_services()
         if not checked:
             btn_restart.add_class("hidden")
+            btn_rebuild.add_class("hidden")
             btn_stop.add_class("hidden")
             btn_start.add_class("hidden")
             return
@@ -1275,14 +1316,17 @@ class Dashboard(App):
 
         if all_stopped:
             btn_restart.add_class("hidden")
+            btn_rebuild.add_class("hidden")
             btn_stop.add_class("hidden")
             btn_start.remove_class("hidden")
         elif all_running:
             btn_restart.remove_class("hidden")
+            btn_rebuild.remove_class("hidden")
             btn_stop.remove_class("hidden")
             btn_start.add_class("hidden")
         else:
             btn_restart.remove_class("hidden")
+            btn_rebuild.remove_class("hidden")
             btn_stop.remove_class("hidden")
             btn_start.remove_class("hidden")
 
@@ -1341,6 +1385,10 @@ class Dashboard(App):
     def on_restart_pressed(self) -> None:
         self._do_service_action("restart")
 
+    @on(Button.Pressed, "#btn-rebuild")
+    def on_rebuild_pressed(self) -> None:
+        self._do_service_action("rebuild")
+
     @on(Button.Pressed, "#btn-stop")
     def on_stop_pressed(self) -> None:
         self._do_service_action("stop")
@@ -1376,6 +1424,9 @@ class Dashboard(App):
 
     def action_restart(self) -> None:
         self._do_service_action("restart")
+
+    def action_rebuild(self) -> None:
+        self._do_service_action("rebuild")
 
     def action_next_theme(self) -> None:
         themes = sorted(self.available_themes)
@@ -1592,7 +1643,7 @@ class Dashboard(App):
 
     def _disable_action_buttons(self, disable: bool = True) -> None:
         """Disable or enable all action buttons."""
-        for btn_id in ("#btn-stop", "#btn-start", "#btn-restart"):
+        for btn_id in ("#btn-stop", "#btn-start", "#btn-restart", "#btn-rebuild"):
             self.query_one(btn_id, Button).disabled = disable
 
     @work(exclusive=True, thread=True)
@@ -1703,6 +1754,32 @@ class Dashboard(App):
                             return
 
                     self._write_orch(log_view, orch, Text("\nRestart complete!", style="green bold"))
+
+                elif action == "rebuild":
+                    # Explicit build then recreate — works for any service
+                    all_targets = sorted(target_services)
+                    svc_str = " ".join(all_targets)
+                    self._write_orch(log_view, orch, Text(
+                        f"\n--- docker compose build {svc_str} ---",
+                        style="bold",
+                    ))
+                    cmd = [*get_compose_cmd(self._compose_file), "build", *all_targets]
+                    rc = self._run_streaming(cmd, log_view, orch, timeout=300)
+                    if rc != 0:
+                        self._write_orch(log_view, orch, Text("Build failed!", style="red bold"))
+                        return
+
+                    self._write_orch(log_view, orch, Text(
+                        f"\n--- docker compose up -d {svc_str} ---",
+                        style="bold",
+                    ))
+                    cmd = [*get_compose_cmd(self._compose_file), "up", "-d", *all_targets]
+                    rc = self._run_streaming(cmd, log_view, orch, timeout=120)
+                    if rc != 0:
+                        self._write_orch(log_view, orch, Text("Recreate failed!", style="red bold"))
+                        return
+
+                    self._write_orch(log_view, orch, Text("\nRebuild complete!", style="green bold"))
 
         except subprocess.TimeoutExpired:
             log_view.write(Text("Command timed out!", style="red bold"))

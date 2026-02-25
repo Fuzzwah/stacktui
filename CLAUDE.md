@@ -109,5 +109,6 @@ openspec/                 # OpenSpec specs and changes
 | s   | Stop selected       |
 | t   | Start selected      |
 | p   | Restart selected    |
+| b   | Rebuild selected    |
 | l   | Focus log selector  |
 | T   | Cycle theme         |
