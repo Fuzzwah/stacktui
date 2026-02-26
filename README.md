@@ -72,6 +72,14 @@ uv add stacktui
 
 See `dashboard.toml.example` for a fully annotated configuration reference.
 
+### Coding Agent Prompts
+
+If you use a coding agent (Claude Code, Cursor, etc.), these ready-made prompts will set things up for you:
+
+- **[`INTEGRATION_PROMPT.md`](INTEGRATION_PROMPT.md)** — Add StackTUI to an existing Docker Compose project. Walks the agent through adding StackTUI as a git submodule, creating a `dashboard.toml`, and setting up a convenience runner.
+
+- **[`GREENFIELD_PROMPT.md`](GREENFIELD_PROMPT.md)** — Start a new project from scratch with StackTUI and [OpenSpec](https://github.com/openspec-dev/openspec). Includes full project scaffolding, Docker Compose setup, dashboard config, and the spec-driven development workflow with Claude Code slash commands.
+
 ## Keyboard Shortcuts
 
 | Key | Action |
