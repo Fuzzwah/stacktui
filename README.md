@@ -8,13 +8,10 @@ Monitor services, tail logs, manage deployments, and control your stack from one
 
 StackTUI supports 12 color themes. Press `T` to cycle through them, or use the command palette (`Ctrl+P`).
 
-<img src="docs/screenshots/textual-dark.svg" alt="textual-dark" width="600">
-
-<img src="docs/screenshots/nord.svg" alt="nord" width="600">
-
-<img src="docs/screenshots/gruvbox.svg" alt="gruvbox" width="600"> 
-
-<img src="docs/screenshots/tokyo-night.svg" alt="tokyo-night" width="600">
+![textual-dark](docs/screenshots/textual-dark.svg)
+![nord](docs/screenshots/nord.svg)
+![gruvbox](docs/screenshots/gruvbox.svg)
+![tokyo-night](docs/screenshots/tokyo-night.svg)
 
 <details>
 <summary>All available themes</summary>
@@ -25,15 +22,23 @@ catppuccin-latte, catppuccin-mocha, dracula, flexoki, gruvbox, monokai, nord, so
 
 ## Features
 
-- **Service monitoring** — Live health indicators (healthy/running/stopped) with colored status dots, refreshed every 10 seconds
-- **Healthcheck freshness** — Shows time since last successful healthcheck for configured containers
-- **Log tailing** — Stream Docker container logs or local log files in real time, switchable via dropdown
-- **Service orchestration** — Stop, start, and restart selected services with smart ordering (infra first, then app services with `--build`)
-- **Service selection** — Checkbox-based selection with Select All, plus quick-select buttons for changed or unhealthy services
-- **Git integration** — Pull latest code, switch branches/refs, view commit history, and auto-detect affected services from diffs
+- **Service monitoring** — Live health indicators (healthy/running/stopped) with colored status dots, refreshed every 10 seconds; includes healthcheck freshness tracking showing time since last successful check
+- **Container uptime** — Compact duration display (e.g., "3d 4h") next to status indicators to spot unexpected restarts at a glance
+- **Restart counts** — Per-container restart count highlighting services caught in restart loops
+- **Resource usage** — Per-service CPU and memory usage displayed in the service panel for early detection of runaway processes
+- **Image versions** — Docker image tags shown next to infrastructure services (e.g., `postgres:16.2`, `redis:7.4`)
+- **Port mappings** — Exposed ports displayed next to each service (e.g., `:8000`, `:5432`)
+- **Log error counts** — Badges showing recent ERROR/CRITICAL log line counts per service without manual tailing
+- **Log tailing** — Real-time streaming from Docker containers or local log files, switchable via dropdown
+- **Service orchestration** — Stop, start, restart, and rebuild selected services with smart ordering (infra first, then app services with `--build`)
+- **Orchestration history** — Compact list of recent orchestration actions with timestamps
+- **Service selection** — Checkbox-based selection with quick-select modes (All, Changed, Stopped, Running, None) and auto-selection of affected/unhealthy services
+- **Git integration** — Pull, checkout, browse refs, view history, and auto-detect affected services from diffs
+- **Git status summary** — Uncommitted change counts (modified, staged, untracked) in the git info area
 - **Webhook notifications** — Banner alerts when GitHub pushes new commits to the current branch
-- **Theme switching** — 12 built-in themes, cycle with `T` or pick from the command palette; selection persists across sessions
-- **Self-update** — Pulls latest code on startup; detects when the dashboard script changes and offers a reload button
+- **Theme switching** — 12 built-in themes, cycle with `T` or pick from the command palette; persisted per-user across sessions
+- **User preferences** — Per-user settings in `.stacktui-user.toml` (not committed to version control) overlaying project config
+- **Self-update check** — Background check for upstream updates with in-app banner notification and reload button
 - **Dev/prod modes** — Auto-detects environment via container inspection, or use `--prod`/`--dev` flags
 - **Native process detection** — Monitors non-Docker processes via `pgrep` patterns (dev mode only)
 - **TOML configuration** — One config file adapts the dashboard to any Docker Compose project
@@ -90,6 +95,7 @@ If you use a coding agent (Claude Code, Cursor, etc.), these ready-made prompts 
 | `s` | Stop selected services |
 | `t` | Start selected services |
 | `p` | Restart selected services |
+| `b` | Rebuild selected services |
 | `l` | Focus log service selector |
 | `T` | Cycle theme |
 
@@ -103,7 +109,7 @@ Key sections:
 - **`[compose]`** — Paths to dev/prod compose files
 - **`[services]`** — Primary (app) and infra service lists with display labels
 - **`[[path_map]]`** — Maps source file paths to services (for git-aware affected service detection)
-- **`[logs]`** — Log directory and named log files
+- **`[logs]`** — Log directory, named log files, and error patterns for badge counts
 - **`[freshness]`** — Container to probe for healthcheck freshness
 - **`[links]`** — URLs shown in the links panel (`{base_url}` placeholder supported)
 - **`[links.dev_only]`** — Dev-only links (hidden in production mode)
@@ -156,7 +162,12 @@ The `openspec/` directory contains the full spec history. The `.claude/` directo
 ```text
 stacktui/                 # Python package
   __init__.py             # Public API exports
-  dashboard.py            # Main application
+  config.py               # Configuration dataclass + constants
+  helpers.py              # Git, Docker, service query helpers
+  widgets.py              # Textual widget classes
+  app.py                  # Dashboard(App) main application
+  cli.py                  # CLI entry point + self-update
+  dashboard.py            # Backward-compat re-export shim
 dashboard.toml.example    # Annotated config template
 pyproject.toml            # Package metadata + build config
 demo/                     # Demo Docker Compose environment
