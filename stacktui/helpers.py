@@ -252,7 +252,7 @@ def get_base_url(config: DashboardConfig, prod: bool) -> str:
 class ServiceInfo:
     """Parsed service status from docker compose ps."""
 
-    def __init__(self, name: str, service: str, state: str, health: str, config: DashboardConfig | None = None, uptime_seconds: int | None = None, image: str = "") -> None:
+    def __init__(self, name: str, service: str, state: str, health: str, config: DashboardConfig | None = None, uptime_seconds: int | None = None, image: str = "", restart_count: int = 0) -> None:
         self.name = name
         self.service = service
         self.state = state
@@ -260,6 +260,7 @@ class ServiceInfo:
         self._config = config
         self.uptime_seconds = uptime_seconds
         self.image = image
+        self.restart_count = restart_count
 
     @property
     def display_name(self) -> str:
@@ -405,6 +406,20 @@ def parse_services(config: DashboardConfig, compose_file: str) -> list[ServiceIn
                 by_service[key] = svc
 
     services = list(by_service.values())
+
+    # Query restart counts for each container
+    for svc in services:
+        if svc.state in ("running", "restarting"):
+            out = _run(
+                ["docker", "inspect", "--format", "{{.RestartCount}}", svc.name],
+                timeout=5,
+            )
+            if out:
+                try:
+                    svc.restart_count = int(out)
+                except ValueError:
+                    pass
+
     services.sort(key=lambda s: s.sort_key)
     return services
 
