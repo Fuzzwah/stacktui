@@ -24,11 +24,11 @@ Update the project README.md to match the current feature set (sourced from Open
 
 2. **Check if demo services are up:**
    ```bash
-   docker compose -f demo/docker-compose.yml ps --format json
+   docker-compose -f demo/docker-compose.yml ps --format json
    ```
    If not running, start them:
    ```bash
-   docker compose -f demo/docker-compose.yml up -d
+   docker-compose -f demo/docker-compose.yml up -d
    ```
    Wait up to 60 seconds for services to become healthy before proceeding.
 
