@@ -65,6 +65,11 @@ redis  = "Redis"
 # Directory for log files (relative to project root).
 dir = "logs"
 
+# Error patterns to scan for in container logs.
+# Lines matching any of these (case-insensitive) are counted and shown as
+# badges on the service panel. Default: ["ERROR", "CRITICAL", "FATAL", "PANIC"]
+# error_patterns = ["ERROR", "CRITICAL", "FATAL", "PANIC"]
+
 # Named log files that can be tailed in the dashboard.
 # These appear in the service dropdown as "<name> (log file)".
 [logs.files]

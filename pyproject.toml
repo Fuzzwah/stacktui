@@ -11,7 +11,7 @@ dependencies = [
 ]
 
 [project.scripts]
-stacktui = "stacktui.dashboard:main"
+stacktui = "stacktui.cli:main"
 
 [build-system]
 requires = ["hatchling"]

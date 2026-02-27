@@ -17,6 +17,9 @@ The system MUST query Docker Compose for service status using JSON output format
 - THEN it runs `docker compose ps --format json -a`
 - AND parses each JSON line into a `ServiceInfo` object
 - AND deduplicates by service name, keeping the highest-priority state
+- AND extracts the uptime duration from the `Status` field into `ServiceInfo.uptime_seconds`
+- AND extracts the image string from the `Image` field into `ServiceInfo.image`
+- AND extracts published port numbers from the `Publishers` array into `ServiceInfo.ports`
 
 #### Scenario: State priority for duplicates
 
@@ -37,31 +40,58 @@ The system MUST discover containers across compose files using `docker ps` direc
 
 ### Requirement: Health Status Display
 
-Each service MUST display a colored status indicator.
+Each service MUST display a colored status indicator with optional uptime, image tag, resource usage, error badge, and port mappings.
 
 #### Scenario: Healthy service
 
 - GIVEN a service with health status "healthy"
 - WHEN displayed in the ServicePanel
 - THEN it shows a green dot with text "healthy"
+- AND appends the uptime in dim style if available
+- AND appends the image tag in dim style if the service is an infra service with a non-empty tag
+- AND appends CPU% and memory usage in dim style if resource stats are available
+- AND appends an error count badge if the service has errors in recent logs
+- AND appends port mappings in dim style if the service has published ports
 
 #### Scenario: Running without healthcheck
 
 - GIVEN a service in "running" state with no health status
 - WHEN displayed in the ServicePanel
 - THEN it shows a yellow dot with text "running"
+- AND appends the uptime in dim style if available
+- AND appends the image tag in dim style if the service is an infra service with a non-empty tag
+- AND appends CPU% and memory usage in dim style if resource stats are available
+- AND appends an error count badge if the service has errors in recent logs
+- AND appends port mappings in dim style if the service has published ports
 
 #### Scenario: Stopped service
 
 - GIVEN a service not found in Docker output
 - WHEN displayed in the ServicePanel
 - THEN it shows a dim dash "—"
+- AND no uptime is displayed
+- AND no image tag is displayed
+- AND no resource usage is displayed
+- AND no error badge is displayed
+- AND no port mappings are displayed
 
 #### Scenario: Unhealthy service auto-selection
 
 - GIVEN a service that transitions to an unhealthy/stopped state
 - WHEN the status refresh detects this change
 - THEN the service's checkbox is automatically checked
+
+#### Scenario: High CPU usage warning
+
+- GIVEN a running service using more than 80% CPU
+- WHEN displayed in the ServicePanel
+- THEN the CPU percentage is styled in warning color (yellow or red) instead of dim
+
+#### Scenario: High memory usage warning
+
+- GIVEN a running service using more than 80% of its memory limit
+- WHEN displayed in the ServicePanel
+- THEN the memory value is styled in warning color (yellow or red) instead of dim
 
 ### Requirement: Automatic Status Refresh
 
@@ -73,6 +103,7 @@ The system MUST refresh service status periodically.
 - WHEN the refresh timer fires
 - THEN `_refresh_status()` runs every 10 seconds
 - AND updates the ServicePanel with current Docker state
+- AND collects resource stats via `docker stats --no-stream --format json`
 - AND checks for webhook signals
 
 ### Requirement: Healthcheck Freshness
