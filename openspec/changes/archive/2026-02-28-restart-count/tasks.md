@@ -9,13 +9,13 @@
 
 ## 3. ServicePanel Badge Display
 
-- [ ] 3.1 In `ServicePanel.update_services()`, append restart count badge `" ↻N"` to the status Text when restart_count > 0
-- [ ] 3.2 Style badge yellow for counts 1-4, red for counts >= 5
+- [x] 3.1 In `ServicePanel.update_services()`, append restart count badge `" ↻N"` to the status Text when restart_count > 0
+- [x] 3.2 Style badge yellow for counts 1-4, red for counts >= 5
 
 ## 4. Auto-Select Restart-Looping Services
 
-- [ ] 4.1 In `ServicePanel.update_services()`, add services with restart_count >= 5 to the unhealthy set for auto-checkbox selection
+- [x] 4.1 In `ServicePanel.update_services()`, add services with restart_count >= 5 to the unhealthy set for auto-checkbox selection
 
 ## 5. Verification
 
-- [ ] 5.1 Run the demo environment and verify restart count displays correctly (may need to manually trigger restarts to test)
+- [x] 5.1 Run the demo environment and verify restart count displays correctly (may need to manually trigger restarts to test)

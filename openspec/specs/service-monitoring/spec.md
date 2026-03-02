@@ -20,6 +20,7 @@ The system MUST query Docker Compose for service status using JSON output format
 - AND extracts the uptime duration from the `Status` field into `ServiceInfo.uptime_seconds`
 - AND extracts the image string from the `Image` field into `ServiceInfo.image`
 - AND extracts published port numbers from the `Publishers` array into `ServiceInfo.ports`
+- AND queries `docker inspect --format '{{.RestartCount}}'` for each running/restarting container to populate `ServiceInfo.restart_count`
 
 #### Scenario: State priority for duplicates
 
@@ -51,6 +52,7 @@ Each service MUST display a colored status indicator with optional uptime, image
 - AND appends the image tag in dim style if the service is an infra service with a non-empty tag
 - AND appends CPU% and memory usage in dim style if resource stats are available
 - AND appends an error count badge if the service has errors in recent logs
+- AND appends a restart count badge ("↻N") if the container has restarted (yellow for 1-4, red for 5+)
 - AND appends port mappings in dim style if the service has published ports
 
 #### Scenario: Running without healthcheck
@@ -62,6 +64,7 @@ Each service MUST display a colored status indicator with optional uptime, image
 - AND appends the image tag in dim style if the service is an infra service with a non-empty tag
 - AND appends CPU% and memory usage in dim style if resource stats are available
 - AND appends an error count badge if the service has errors in recent logs
+- AND appends a restart count badge ("↻N") if the container has restarted (yellow for 1-4, red for 5+)
 - AND appends port mappings in dim style if the service has published ports
 
 #### Scenario: Stopped service
@@ -78,6 +81,7 @@ Each service MUST display a colored status indicator with optional uptime, image
 #### Scenario: Unhealthy service auto-selection
 
 - GIVEN a service that transitions to an unhealthy/stopped state
+- OR a service with a restart count of 5 or more (restart-looping)
 - WHEN the status refresh detects this change
 - THEN the service's checkbox is automatically checked
 

@@ -131,10 +131,15 @@ class ServicePanel(Vertical):
                     line.append(f"  {info.uptime_text}", style="dim")
                 if info.image_tag and svc in self._config.infra_service_set:
                     line.append(f"  :{info.image_tag}", style="dim")
+                if info.restart_count > 0:
+                    restart_style = "red" if info.restart_count >= 5 else "yellow"
+                    line.append(f"  ↻{info.restart_count}", style=restart_style)
                 status_widget.update(line)
                 statuses[svc] = info.status_text
 
                 if info.status_text not in ("healthy", "running"):
+                    current_unhealthy.add(svc)
+                if info.restart_count >= 5:
                     current_unhealthy.add(svc)
             else:
                 status_widget.update(Text("—", style="dim"))
